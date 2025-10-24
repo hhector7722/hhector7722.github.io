@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat — Bar la Mar Bella</title>
+  <style>
+    :root{ --primary:#854fff; --secondary:#6b3fd4; --bg:#f6f6f9; --panel:#fff; --text:#222; --muted:#666; --danger:#c0392b; }
+    *{box-sizing:border-box}
+    body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text); display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .chat{ width:100%; max-width:420px; height:80vh; max-height:720px; background:var(--panel); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.08); display:flex; flex-direction:column; overflow:hidden; }
+    header{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:linear-gradient(90deg,var(--primary),var(--secondary)); color:#fff; }
+    .messages{ flex:1; padding:14px; overflow:auto; background:linear-gradient(180deg,#fff,#fafbff 60%,#f6f6f9); }
+    .msg{ max-width:85%; margin:6px 0; padding:10px 12px; border-radius:12px; line-height:1.35; word-wrap:break-word; white-space:pre-wrap; box-shadow:0 2px 6px rgba(0,0,0,.04); }
+    .msg.user{ background:#ece8ff; margin-left:auto; border-bottom-right-radius:4px; }
+    .msg.bot{ background:#fff; border-left:3px solid var(--primary); border-bottom-left-radius:4px; }
+    .msg.system{ background:#fff7f7; border-left:3px solid var(--danger); color:#b0352a; }
+    .typing{ display:inline-block; width:36px;height:10px; position:relative; }
+    .typing:before, .typing:after, .typing i{ content:""; position:absolute; top:0;width:8px;height:8px;border-radius:50%; animation: blink 1s infinite ease-in-out; background: var(--muted); opacity:.6; }
+    .typing:before{ left:0; animation-delay:0s; } .typing i{ left:14px; animation-delay:.2s; } .typing:after{ left:28px; animation-delay:.4s; }
+    @keyframes blink{ 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+    .input{ padding:10px; background:#fff; border-top:1px solid #eee; display:flex; gap:8px; align-items:center; }
+    textarea{ flex:1; resize:none; border:1px solid #ddd; border-radius:10px; padding:10px 12px; min-height:44px; max-height:120px; outline:none; font-size:14px; }
+    button{ border:none; border-radius:10px; padding:10px 14px; background:var(--primary); color:#fff; font-weight:600; cursor:pointer; }
+    button[disabled]{ opacity:.6; cursor:not-allowed; }
+    .hint{ padding:6px 12px; font-size:12px; color:var(--muted); text-align:center; border-top:1px dashed #eee; background:#fafafe; }
+  </style>
+</head>
+<body>
+  <script>
+    const WEBHOOK_URL  = "http://100.69.174.56:5678/webhook/chat";
+    const FALLBACK_URL = "http://100.69.174.56:5678/webhook/chat";
+    const RESPONSE_FIELDS = ["reply","message","text","data"];
+  </script>
+
+  <div class="chat">
+    <header>
+      <div><strong>Bar la Mar Bella</strong><br/><small>Asistente • Respuesta rápida</small></div>
+    </header>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="input">
+      <textarea id="userInput" placeholder="Escribe tu mensaje... (Enter envía · Shift+Enter salto de línea)"></textarea>
+      <button id="sendBtn">Enviar</button>
+    </div>
+    <div class="hint">Si no responde: revisa CORS en n8n (Respond to Webhook con <em>Access-Control-Allow-Origin: *</em>).</div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const messages = $("#messages"), input = $("#userInput"), sendBtn = $("#sendBtn");
+    const STORAGE_KEY = "marbella_chat_history_v2";
+
+    function appendMessage(text, role="bot"){
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      div.textContent = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+      persistHistory();
+    }
+
+    function appendTyping(){
+      const div = document.createElement("div");
+      div.className = "msg bot";
+      div.innerHTML = '<span class="typing"></span><span class="typing"><i></i></span>';
+      div.id = "typing";
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    function removeTyping(){ const el = document.getElementById("typing"); if(el) el.remove(); }
+
+    function getHistory(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); }catch(_){ return []; } }
+    function persistHistory(){
+      const data = Array.from(messages.querySelectorAll(".msg")).map(n=>({
+        role: n.classList.contains("user") ? "user" : (n.classList.contains("system") ? "system":"bot"),
+        text: n.textContent
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+    (function restore(){
+      const hist = getHistory();
+      if(hist.length===0){ appendMessage("¡Hola! Soy el asistente de Bar la Mar Bella. ¿En qué te ayudo hoy?"); return; }
+      hist.forEach(m=>appendMessage(m.text, m.role));
+    })();
+
+    async function post(url, text){
+      const body = "text=" + encodeURIComponent(text);
+      return fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body, credentials: "omit", mode: "cors"
+      });
+    }
+
+    async function sendMessage(){
+      const text = input.value.trim();
+      if(!text) return;
+      appendMessage(text, "user");
+      input.value = ""; input.style.height = "auto"; sendBtn.disabled = true; appendTyping();
+
+      let res, data, ok=false, error=null;
+      try{
+        res = await post(WEBHOOK_URL, text);
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        try{ data = await res.json(); } catch(_){ data = { raw: await res.text() }; }
+        ok = true;
+      }catch(e1){
+        try{
+          res = await post(FALLBACK_URL, text);
+          if(!res.ok) throw new Error("HTTP " + res.status);
+          try{ data = await res.json(); } catch(_){ data = { raw: await res.text() }; }
+          ok = true;
+        }catch(e2){ error = e2.message || "Error de red"; }
+      }
+
+      removeTyping(); sendBtn.disabled = false;
+
+      if(ok){
+        let reply = "";
+        if(data){
+          for(const k of RESPONSE_FIELDS){ if(typeof data[k] === "string"){ reply = data[k]; break; } }
+          if(!reply){
+            if(typeof data === "string") reply = data;
+            else if(data.raw) reply = String(data.raw);
+            else reply = JSON.stringify(data);
+          }
+        }else reply = "Sin respuesta del servidor.";
+        appendMessage(reply, "bot");
+      }else{
+        appendMessage("No se pudo conectar con el webhook. Revisa:\n• URL del webhook activa\n• Nodo Respond to Webhook con CORS (Access-Control-Allow-Origin: *)\n• El Webhook acepta x-www-form-urlencoded y lees {{$json.body.text}}\nDetalle: " + error, "system");
+      }
+    }
+
+    input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 120) + "px"; });
+    input.addEventListener("keydown", (e) => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(); } });
+    sendBtn.addEventListener("click", sendMessage);
+  </script>
+</body>
+</html>
