@@ -1,138 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Sitio Web Interactivo</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 500px;
-            width: 100%;
-        }
-        
-        h1 {
-            color: #667eea;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        
-        p {
-            color: #666;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .counter {
-            text-align: center;
-            margin: 30px 0;
-        }
-        
-        .count {
-            font-size: 72px;
-            font-weight: bold;
-            color: #667eea;
-            margin: 20px 0;
-        }
-        
-        .buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        button:hover {
-            background: #764ba2;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .reset {
-            background: #ff6b6b;
-        }
-        
-        .reset:hover {
-            background: #ee5a52;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat Interno - Bar La Marbella</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-    <div class="container">
-        <h1>¡Bienvenido a mi sitio!</h1>
-        <p>Este es un contador interactivo</p>
-        
-        <div class="counter">
-            <div class="count" id="counter">0</div>
-            <div class="buttons">
-                <button onclick="incrementar()">+ Incrementar</button>
-                <button onclick="decrementar()">- Decrementar</button>
-                <button class="reset" onclick="resetear()">Resetear</button>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        let count = 0;
-        
-        function incrementar() {
-            count++;
-            actualizarContador();
-        }
-        
-        function decrementar() {
-            count--;
-            actualizarContador();
-        }
-        
-        function resetear() {
-            count = 0;
-            actualizarContador();
-        }
-        
-        function actualizarContador() {
-            const counterElement = document.getElementById('counter');
-            counterElement.textContent = count;
-            
-            // Cambiar color según el valor
-            if (count > 0) {
-                counterElement.style.color = '#10b981';
-            } else if (count < 0) {
-                counterElement.style.color = '#ef4444';
-            } else {
-                counterElement.style.color = '#667eea';
-            }
-        }
-    </script>
+  <header>💬 Chat Interno - Bar La Marbella</header>
+  <div id="chat-box"></div>
+  <form id="chat-form">
+    <input id="user-input" type="text" placeholder="Escribe tu pregunta..." autocomplete="off"/>
+    <button type="submit">Enviar</button>
+  </form>
+  <script src="chat.js"></script>
 </body>
 </html>
